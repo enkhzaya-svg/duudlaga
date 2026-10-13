@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call Data Analytics - Гадагшаа дуудлагын нарийвчилсан тооцоолуур</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse for robust CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Header Navigation -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+            Call Intelligence Analytics
+            <span class="text-[10px] uppercase font-bold tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">v2.0 Нарийвчилсан</span>
+          </h1>
+          <p class="text-xs text-slate-500">Гадагшаа залгасан 1 дугаарын эхний дуудлага & давталт тооцоологч</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button id="loadSampleBtn" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition flex items-center space-x-1.5 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          <span class="hidden sm:inline">Жишээ өгөгдөл шалгах</span>
+          <span class="sm:hidden">Жишээ дата</span>
+        </button>
+        <span id="fileBadge" class="hidden text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full font-semibold">
+          0 файл
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- File Upload Section -->
+    <div id="dropArea" class="relative border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white rounded-2xl p-6 text-center transition-all cursor-pointer shadow-xs group">
+      <input type="file" id="csvFileInput" accept=".csv,text/csv,text/plain" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+      <div class="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 group-hover:bg-blue-100 transition-all">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm sm:text-base font-semibold text-slate-800">
+            CSV файлуудаа энд чирж оруулах эсвэл <span class="text-blue-600 underline">дарж сонгоно уу</span>
+          </p>
+          <p class="text-xs text-slate-500 mt-0.5">
+            2026-04-16...CallDataExport.csv, 2026-07-01...CallDataExport.csv зэрэг олон файлыг зэрэг нэгтгэн уншина
+          </p>
+        </div>
+        <div id="uploadFeedback" class="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
+          Автомат формат танигч: Comma, Semicolon, Tab тусгаарлагч болон бүх огнооны форматыг бүрэн дэмжинэ
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Counting Rules Panel -->
+    <div id="filterPanel" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+        <div class="flex items-center space-x-2">
+          <span class="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          </span>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Шүүлтүүр & Тохиргоо</h2>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="quickTodayBtn" class="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition">Бүх хугацаа</button>
+          <button id="resetFiltersBtn" class="text-xs text-slate-500 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100 transition">Цэвэрлэх</button>
+          <span id="recordCountBadge" class="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-semibold">
+            0 мөр өгөгдөл
+          </span>
+        </div>
+      </div>
+
+      <!-- Unified Filter Selection Inputs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <!-- Date From -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">
+            Эхлэх огноо <span class="text-[10px] text-blue-600 font-normal">(00:00-с)</span>
+          </label>
+          <input type="date" id="filterDateFrom" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
+        </div>
+
+        <!-- Date To -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">
+            Дуусах огноо <span class="text-[10px] text-blue-600 font-normal">(23:59 хүртэл)</span>
+          </label>
+          <input type="date" id="filterDateTo" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer">
+        </div>
+
+        <!-- Call Direction -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Дуудлагын чиглэл</label>
+          <select id="filterDirection" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <option value="OUTBOUND" selected>Зөвхөн Гадагшаа (Outbound)</option>
+            <option value="ALL">Бүх чиглэл (All)</option>
+            <option value="INBOUND">Зөвхөн Дотогшоо (Inbound)</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Дуудлагын төлөв</label>
+          <select id="filterStatus" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <option value="ALL" selected>Бүх төлөв (All)</option>
+            <option value="ANSWERED">Амжилттай холбогдсон (Answered)</option>
+            <option value="NO ANSWER">Хариулаагүй (No Answer)</option>
+            <option value="BUSY">Завгүй (Busy)</option>
+            <option value="FAILED">Алдаатай / Цуцалсан (Failed)</option>
+          </select>
+        </div>
+
+        <!-- Count Mode (Moved here as requested) -->
+        <div>
+          <label class="block text-xs font-semibold text-blue-700 mb-1">Тооцоолох дүрэм</label>
+          <select id="filterCountMode" class="w-full text-xs border border-blue-200 bg-blue-50/50 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-medium">
+            <option value="WINDOW_FIRST" selected>Хугацаан дахь 1-р дуудлага</option>
+            <option value="ABSOLUTE_FIRST">Цоо шинэ дугаарын залгалт</option>
+            <option value="FIRST_ANSWERED">Анх холбогдсон дуудлага</option>
+          </select>
+        </div>
+
+        <!-- Filter View Mode -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Хүснэгтэд харуулах</label>
+          <select id="filterViewScope" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <option value="FIRST_ONLY" selected>Зөвхөн эхний залгалт (1st)</option>
+            <option value="REPEAT_ONLY">Зөвхөн давтан залгалт (2nd+)</option>
+            <option value="ALL_CALLS">Бүх дуудлага (All)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Search & Minimum Duration Filter -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+        <div class="relative w-full sm:w-80">
+          <input type="text" id="filterSearch" placeholder="Утасны дугаар, ажилтны дугаар хайх (Enter дарж шүүнэ)..." class="w-full text-xs border border-slate-200 rounded-lg pl-8 pr-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto">
+          <div class="flex items-center space-x-1.5 text-xs text-slate-600">
+            <span>Мин ярианы сек:</span>
+            <input type="number" id="filterMinSec" min="0" value="0" class="w-16 text-xs border border-slate-200 rounded-lg px-2 py-1 text-center bg-white">
+          </div>
+
+          <span id="filterDirtyBadge" class="hidden text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 animate-pulse">
+            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Шүүлтүүр өөрчлөгдсөн
+          </span>
+
+          <span id="lastFilteredTime" class="hidden sm:inline-block text-[11px] text-slate-400 font-mono bg-slate-100 px-2.5 py-1.5 rounded-lg">
+            Шүүлт: Бэлэн
+          </span>
+
+          <button id="applyFilterManualBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/>
+            </svg>
+            <span id="applyBtnText">Шүүж тооцоолох</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <div id="metricsContainer" class="grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300">
+      <!-- Unique Targets Dialed -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 right-0 transform translate-x-2 -translate-y-2 w-14 h-14 bg-blue-100 rounded-full opacity-50"></div>
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Шинэ дугаарын эхний залгалт</p>
+        <div class="mt-2 flex items-baseline space-x-2">
+          <span id="kpiFirstCalls" class="text-2xl sm:text-3xl font-extrabold text-blue-600">0</span>
+          <span class="text-xs text-slate-400 font-medium">дугаар</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1 flex items-center">
+          <span class="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></span>
+          <span id="kpiFirstCallsDesc">Хугацаан дахь цор ганц 1-р дуудлага</span>
+        </p>
+      </div>
+
+      <!-- Total Calls in Scope -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative">
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Нийт шүүгдсэн залгалт</p>
+        <div class="mt-2 flex items-baseline space-x-2">
+          <span id="kpiTotalCalls" class="text-2xl sm:text-3xl font-extrabold text-slate-800">0</span>
+          <span class="text-xs text-slate-400 font-medium">дуудлага</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">
+          Давхардсан залгалт: <b id="kpiRepeatCount" class="text-slate-700">0</b> удаа
+        </p>
+      </div>
+
+      <!-- Successful (Answered) Rate -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative">
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Амжилттай холбогдсон</p>
+        <div class="mt-2 flex items-baseline space-x-2">
+          <span id="kpiAnswered" class="text-2xl sm:text-3xl font-extrabold text-emerald-600">0</span>
+          <span id="kpiAnswerRate" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">0%</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">
+          Эхний залгалтаар холбогдсон: <b id="kpiFirstAnswered" class="text-emerald-700">0</b>
+        </p>
+      </div>
+
+      <!-- Talk Duration Stats -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative">
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Нийт ярьсан хугацаа</p>
+        <div class="mt-2 flex items-baseline space-x-2">
+          <span id="kpiTotalDuration" class="text-2xl sm:text-3xl font-extrabold text-slate-800">00:00:00</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">
+          Дундаж яриа (Холбогдсонд): <b id="kpiAvgDuration" class="text-slate-700">0 сек</b>
+        </p>
+      </div>
+    </div>
+
+    <!-- Analytics Graphs & Agent Performance Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <!-- Main Timeline Chart -->
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Хугацааны динамик (Анхны дугаар vs Нийт дуудлага)</h3>
+            <p class="text-xs text-slate-500">Өдөр тутмын гадагшаа залгасан шинэ дугаарын эрч хүч</p>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+            <span class="text-[11px] text-slate-600 mr-2">Эхний</span>
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+            <span class="text-[11px] text-slate-600">Нийт</span>
+          </div>
+        </div>
+        <div class="relative h-64 sm:h-72 w-full">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Disposition Pie Chart -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Дуудлагын үр дүн</h3>
+              <p class="text-xs text-slate-500">Төлөв байдлын эзлэх хувь</p>
+            </div>
+            <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium">Статус</span>
+          </div>
+          <div class="relative h-48 w-full flex items-center justify-center">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+        <div id="chartLegend" class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs"></div>
+      </div>
+    </div>
+
+    <!-- Second Charts Row: First vs Repeat + Top Repeated Targets -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <!-- First vs Repeat Doughnut -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Эхний vs Давтан залгалт</h3>
+              <p class="text-xs text-slate-500">Шинэ дугаар болон давталтын харьцаа</p>
+            </div>
+            <span class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md font-medium">Харьцаа</span>
+          </div>
+          <div class="relative h-48 w-full flex items-center justify-center">
+            <canvas id="firstRepeatChart"></canvas>
+          </div>
+        </div>
+        <div id="firstRepeatLegend" class="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs"></div>
+      </div>
+
+      <!-- Top Repeated Phone Numbers -->
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Хамгийн олон давхардаж залгасан дугаарууд (Топ 10)</h3>
+            <p class="text-xs text-slate-500">1 дугаар луу хэд хэдэн удаа залгасан давталтын дүн шинжилгээ</p>
+          </div>
+          <span id="repeatSummaryBadge" class="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-md font-semibold self-start sm:self-auto">
+            Тооцоолж байна...
+          </span>
+        </div>
+        <div class="relative h-64 sm:h-72 w-full">
+          <canvas id="topRepeatedChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent / Extension Breakdown Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Ажилтан / Дотуур дугаар тус бүрийн гүйцэтгэл (Agent Performance)</h3>
+          <p class="text-xs text-slate-500">Хэн хэдэн шинэ дугаар луу залгаж, ямар амжилттай холбогдсон бэ?</p>
+        </div>
+        <span id="agentCountBadge" class="text-xs bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-lg">0 ажилтан</span>
+      </div>
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-slate-700 font-bold uppercase text-[11px] tracking-wider">
+            <tr>
+              <th class="px-4 py-3">Ажилтан / Дугаар</th>
+              <th class="px-4 py-3 text-center">Шинэ дугаарын залгалт</th>
+              <th class="px-4 py-3 text-center">Нийт дуудлага</th>
+              <th class="px-4 py-3 text-center">Холбогдсон дуудлага</th>
+              <th class="px-4 py-3 text-center">Холболтын хувь</th>
+              <th class="px-4 py-3 text-right">Нийт ярьсан хугацаа</th>
+            </tr>
+          </thead>
+          <tbody id="agentTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="6" class="px-4 py-8 text-center text-slate-400">Өгөгдөл ачаалагдаагүй байна</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detailed CDR Records Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Дуудлагын дэлгэрэнгүй жагсаалт (Filtered CDR)</h3>
+          <p class="text-xs text-slate-500">Таны тохируулсан шүүлтүүр болон эхний дуудлагын дүрмээр эрэмбэлэгдсэн мэдээлэл</p>
+        </div>
+        <div class="flex items-center space-x-2.5">
+          <button id="exportCsvBtn" class="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center space-x-1.5 cursor-pointer shadow-xs">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span>Шүүсэн дата татах (Excel/CSV)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left text-xs text-slate-600 divide-y divide-slate-200">
+          <thead class="bg-slate-50 text-slate-700 font-semibold tracking-wide">
+            <tr>
+              <th class="px-4 py-3">#</th>
+              <th class="px-4 py-3">Огноо / Цаг</th>
+              <th class="px-4 py-3">Хүлээн авагч (Залгасан дугаар)</th>
+              <th class="px-4 py-3">Дуудлагын төрөл</th>
+              <th class="px-4 py-3">Залгасан ажилтан</th>
+              <th class="px-4 py-3">Төлөв</th>
+              <th class="px-4 py-3">Хугацаа</th>
+              <th class="px-4 py-3">Шинэ/Давтан эрэмбэ</th>
+            </tr>
+          </thead>
+          <tbody id="cdrTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="8" class="px-4 py-12 text-center text-slate-400">
+                CSV файл оруулах эсвэл "Жишээ өгөгдөл шалгах" товчийг дарж шинжилгээг эхлүүлнэ үү.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs gap-3">
+        <div class="flex items-center space-x-3 text-slate-500">
+          <span id="paginationInfo">0 үр дүнгээс 0-0 харуулж байна</span>
+          <select id="pageSizeSelect" class="border border-slate-300 rounded px-2 py-0.5 bg-white text-slate-700">
+            <option value="20">20 мөрөөр</option>
+            <option value="50">50 мөрөөр</option>
+            <option value="100">100 мөрөөр</option>
+          </select>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="prevPageBtn" disabled class="px-3 py-1 bg-white border border-slate-200 rounded text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 transition">Өмнөх</button>
+          <span id="currentPageSpan" class="px-2 font-medium text-slate-800">1</span>
+          <button id="nextPageBtn" disabled class="px-3 py-1 bg-white border border-slate-200 rounded text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 transition">Дараах</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast Notification Box -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-3 text-xs sm:text-sm">
+    <div id="toastIcon" class="text-emerald-400"></div>
+    <div id="toastMessage">Мессеж</div>
+  </div>
+
+  <script>
+    // State management
+    let rawCalls = [];
+    let processedCalls = [];
+    let displayCalls = [];
+    let currentPage = 1;
+    let pageSize = 20;
+
+    // Charts
+    let timelineChart = null;
+    let statusChart = null;
+    let firstRepeatChart = null;
+    let topRepeatedChart = null;
+
+    // Toast utility
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+
+      let iconSvg = '';
+      if (type === 'success') {
+        iconSvg = `<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+      } else if (type === 'error') {
+        iconSvg = `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+      } else {
+        iconSvg = `<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+      }
+
+      toastIcon.innerHTML = iconSvg;
+      toastMsg.textContent = message;
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    function formatDuration(sec) {
+      if (!sec || isNaN(sec)) return '00:00:00';
+      sec = Math.round(Number(sec));
+      const hours = Math.floor(sec / 3600);
+      const minutes = Math.floor((sec % 3600) / 60);
+      const seconds = sec % 60;
+      return [
+        hours.toString().padStart(2, '0'),
+        minutes.toString().padStart(2, '0'),
+        seconds.toString().padStart(2, '0')
+      ].join(':');
+    }
+
+    // High-precision Date Parser for telecom CSV records
+    function parseCallTimestamp(dateStr) {
+      if (!dateStr) return null;
+      if (dateStr instanceof Date && !isNaN(dateStr.getTime())) return dateStr;
+
+      let str = String(dateStr).trim();
+      if (!str) return null;
+
+      // Handle unix timestamp in seconds or milliseconds
+      if (/^\d{10}(\.\d+)?$/.test(str)) {
+        return new Date(parseFloat(str) * 1000);
+      }
+      if (/^\d{13}$/.test(str)) {
+        return new Date(parseInt(str, 10));
+      }
+
+      // Try native parse
+      let d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
+
+      // Telecom format standard: YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss
+      let cleaned = str.replace(/-/g, '/').replace('T', ' ');
+      d = new Date(cleaned);
+      if (!isNaN(d.getTime())) return d;
+
+      // Format DD.MM.YYYY or DD/MM/YYYY
+      const parts = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})[ T](\d{1,2}):(\d{1,2})(:(\d{1,2}))?/);
+      if (parts) {
+        const day = parseInt(parts[1], 10);
+        const month = parseInt(parts[2], 10) - 1;
+        const year = parseInt(parts[3], 10);
+        const hr = parseInt(parts[4], 10);
+        const min = parseInt(parts[5], 10);
+        const sec = parts[7] ? parseInt(parts[7], 10) : 0;
+        d = new Date(year, month, day, hr, min, sec);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      return null;
+    }
+
+    function formatDateForInput(date) {
+      if (!date || isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Clean and normalize phone numbers (e.g. +97699112233 -> 99112233)
+    function cleanPhoneNumber(num) {
+      if (!num) return '';
+      let str = String(num).trim().replace(/[^\d+]/g, '');
+
+      // Remove leading international prefix
+      if (str.startsWith('+976')) str = str.substring(4);
+      else if (str.startsWith('00976')) str = str.substring(5);
+      else if (str.startsWith('976') && str.length >= 11) str = str.substring(3);
+
+      // Remove trunk prefix 0 (e.g., 088112233 -> 88112233)
+      if (str.length === 9 && str.startsWith('0')) {
+        str = str.substring(1);
+      }
+      return str;
+    }
+
+    function normalizeCdrRows(rows) {
+      const normalized = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || Object.keys(row).length === 0) continue;
+
+        // Dynamic column lookup to handle variants of CDR exports
+        const keys = Object.keys(row);
+        const findKey = (candidates) => {
+          const match = keys.find(k => {
+            const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return candidates.some(c => cleanKey === c || cleanKey.includes(c));
+          });
+          return match ? row[match] : null;
+        };
+
+        const rawTime = findKey(['calldate', 'start', 'datetime', 'time', 'date', 'ognoo', 'timestamp', 'createdat']);
+        const rawSrc = findKey(['src', 'caller', 'source', 'from', 'agent', 'extension', 'dugaar', 'cnum']);
+        const rawDst = findKey(['dst', 'callee', 'destination', 'to', 'number', 'called', 'utas']);
+        const rawDir = findKey(['direction', 'type', 'chiglel', 'flow', 'calltype', 'dcontext']);
+        const rawStatus = findKey(['disposition', 'status', 'state', 'tolov', 'result']);
+        const rawBillsec = findKey(['billsec', 'talktime', 'talksec']);
+        const rawDuration = findKey(['duration', 'hugatsaa', 'sec', 'seconds', 'totaltime']);
+
+        const timestamp = parseCallTimestamp(rawTime);
+        if (!timestamp) continue; // Skip rows without valid timestamp
+
+        const rawDstStr = cleanPhoneNumber(rawDst);
+        const rawSrcStr = cleanPhoneNumber(rawSrc);
+
+        // Determine direction: Inbound vs Outbound
+        let direction = 'OUTBOUND';
+        const dirStr = String(rawDir || '').toUpperCase();
+        if (dirStr.includes('IN') || dirStr.includes('RECEIVE') || dirStr.includes('ДОТОГШ') || dirStr.includes('FROM-INTERNAL')) {
+          if (dirStr.includes('OUT') || dirStr.includes('DIAL') || dirStr.includes('ГАДАГШ')) {
+            direction = 'OUTBOUND';
+          } else {
+            direction = 'INBOUND';
+          }
+        } else if (dirStr.includes('OUT') || dirStr.includes('DIAL') || dirStr.includes('ГАДАГШ')) {
+          direction = 'OUTBOUND';
+        } else {
+          // Fallback heuristic based on telecom convention:
+          // Extension (2-5 digits) calling 6-8+ digits is Outbound
+          if (rawSrcStr.length <= 5 && rawDstStr.length >= 7) {
+            direction = 'OUTBOUND';
+          } else if (rawSrcStr.length >= 7 && rawDstStr.length <= 5) {
+            direction = 'INBOUND';
+          }
+        }
+
+        // Determine Status
+        let status = 'NO ANSWER';
+        const stStr = String(rawStatus || '').toUpperCase();
+        if (stStr.includes('ANSWER') || stStr.includes('SUCCESS') || stStr.includes('CONNECT') || stStr.includes('ЯРЬСАН') || stStr.includes('OK')) {
+          status = 'ANSWERED';
+        } else if (stStr.includes('BUSY') || stStr.includes('ЗАВГҮЙ')) {
+          status = 'BUSY';
+        } else if (stStr.includes('FAIL') || stStr.includes('CANCEL') || stStr.includes('CONGESTION') || stStr.includes('АЛДАА')) {
+          status = 'FAILED';
+        }
+
+        // Prefer billsec (actual talk time) over duration if available
+        let duration = 0;
+        if (rawBillsec !== null && rawBillsec !== undefined && rawBillsec !== '') {
+          duration = Number(rawBillsec) || 0;
+        } else {
+          duration = Number(rawDuration) || 0;
+        }
+
+        normalized.push({
+          id: i + 1,
+          timestamp,
+          source: rawSrcStr || 'Оператор',
+          destination: rawDstStr || 'Үл мэдэгдэх',
+          direction,
+          status,
+          duration,
+          originalRow: row
+        });
+      }
+
+      // CRITICAL STEP: Strict Chronological Sort across all merged files
+      normalized.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+      // Global sequence analysis across the entire dataset
+      const globalDestMap = new Map();
+      const globalFirstAnsweredMap = new Map();
+
+      normalized.forEach((call, index) => {
+        call.globalIndex = index;
+
+        // Sequence of attempts to destination across all time
+        const prevCount = globalDestMap.get(call.destination) || 0;
+        call.globalSequence = prevCount + 1;
+        globalDestMap.set(call.destination, prevCount + 1);
+
+        // Track first answered call across all time
+        if (call.status === 'ANSWERED') {
+          if (!globalFirstAnsweredMap.has(call.destination)) {
+            globalFirstAnsweredMap.set(call.destination, true);
+            call.isGlobalFirstAnswered = true;
+          } else {
+            call.isGlobalFirstAnswered = false;
+          }
+        } else {
+          call.isGlobalFirstAnswered = false;
+        }
+      });
+
+      return normalized;
+    }
+
+    function applyFilters() {
+      if (!processedCalls || processedCalls.length === 0) {
+        displayCalls = [];
+        updateUi();
+        return;
+      }
+
+      const dateFromVal = document.getElementById('filterDateFrom').value;
+      const dateToVal = document.getElementById('filterDateTo').value;
+      const directionVal = document.getElementById('filterDirection').value;
+      const statusVal = document.getElementById('filterStatus').value;
+      const viewScope = document.getElementById('filterViewScope').value;
+      const searchVal = document.getElementById('filterSearch').value.trim().toLowerCase();
+      const minSecVal = parseInt(document.getElementById('filterMinSec').value, 10) || 0;
+
+      // Get Selected Algorithm Mode from the dropdown
+      const countMode = document.getElementById('filterCountMode')?.value || 'WINDOW_FIRST';
+
+      // Automatically span from start of the start-day (00:00:00) to end of the end-day (23:59:59.999)
+      let fromTime = -Infinity;
+      let toTime = Infinity;
+
+      if (dateFromVal) {
+        const startDay = new Date(dateFromVal + 'T00:00:00');
+        if (!isNaN(startDay.getTime())) fromTime = startDay.getTime();
+      }
+
+      if (dateToVal) {
+        const endDay = new Date(dateToVal + 'T23:59:59.999');
+        if (!isNaN(endDay.getTime())) toTime = endDay.getTime();
+      }
+
+      // 1. Time, Direction, Status, Search filtering
+      let windowCalls = processedCalls.filter(call => {
+        const t = call.timestamp.getTime();
+        if (t < fromTime || t > toTime) return false;
+
+        if (directionVal !== 'ALL' && call.direction !== directionVal) return false;
+
+        if (statusVal !== 'ALL' && call.status !== statusVal) return false;
+
+        if (minSecVal > 0 && call.duration < minSecVal) return false;
+
+        if (searchVal) {
+          const matchDst = call.destination.toLowerCase().includes(searchVal);
+          const matchSrc = call.source.toLowerCase().includes(searchVal);
+          if (!matchDst && !matchSrc) return false;
+        }
+
+        return true;
+      });
+
+      // 2. Tag sequence within the selected window
+      const windowDestMap = new Map();
+      const windowFirstAnsweredMap = new Map();
+
+      windowCalls.forEach(call => {
+        const count = windowDestMap.get(call.destination) || 0;
+        call.windowSequence = count + 1;
+        windowDestMap.set(call.destination, count + 1);
+
+        if (call.status === 'ANSWERED' && !windowFirstAnsweredMap.has(call.destination)) {
+          windowFirstAnsweredMap.set(call.destination, true);
+          call.isWindowFirstAnswered = true;
+        } else {
+          call.isWindowFirstAnswered = false;
+        }
+
+        // Determine if this call qualifies as the "First Call" based on current mode
+        if (countMode === 'WINDOW_FIRST') {
+          call.isCountedFirst = (call.windowSequence === 1);
+        } else if (countMode === 'ABSOLUTE_FIRST') {
+          call.isCountedFirst = (call.globalSequence === 1);
+        } else if (countMode === 'FIRST_ANSWERED') {
+          call.isCountedFirst = (call.isWindowFirstAnswered === true);
+        }
+      });
+
+      // 3. Filter display rows according to View Scope
+      if (viewScope === 'FIRST_ONLY') {
+        displayCalls = windowCalls.filter(c => c.isCountedFirst);
+      } else if (viewScope === 'REPEAT_ONLY') {
+        displayCalls = windowCalls.filter(c => !c.isCountedFirst);
+      } else {
+        displayCalls = windowCalls;
+      }
+
+      // Store windowCalls reference for overall KPI calculation
+      window._currentWindowCalls = windowCalls;
+
+      currentPage = 1;
+      updateUi();
+
+      // Clear dirty status and show last updated time
+      const dirtyBadge = document.getElementById('filterDirtyBadge');
+      const applyBtn = document.getElementById('applyFilterManualBtn');
+      const lastFiltered = document.getElementById('lastFilteredTime');
+      
+      if (dirtyBadge) dirtyBadge.classList.add('hidden');
+      if (applyBtn) {
+        applyBtn.classList.remove('ring-4', 'ring-amber-400', 'bg-amber-600', 'hover:bg-amber-700');
+        applyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+      }
+
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      if (lastFiltered) {
+        lastFiltered.textContent = `Сүүлд шүүсэн: ${timeStr}`;
+        lastFiltered.classList.remove('text-slate-400');
+        lastFiltered.classList.add('text-slate-700', 'bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+      }
+
+      // Visual flash animation on container to confirm refresh
+      const metricsContainer = document.getElementById('metricsContainer');
+      if (metricsContainer) {
+        metricsContainer.classList.add('ring-2', 'ring-blue-500/50', 'bg-blue-50/20');
+        setTimeout(() => {
+          metricsContainer.classList.remove('ring-2', 'ring-blue-500/50', 'bg-blue-50/20');
+        }, 400);
+      }
+    }
+
+    function updateUi() {
+      const windowCalls = window._currentWindowCalls || [];
+      const countMode = document.getElementById('filterCountMode')?.value || 'WINDOW_FIRST';
+
+      // Badge total
+      document.getElementById('recordCountBadge').textContent = `${windowCalls.length.toLocaleString()} дуудлага шүүгдсэн`;
+
+      // 1. First calls count in the filtered window
+      let firstCallsCount = 0;
+      let firstAnsweredCount = 0;
+
+      if (countMode === 'WINDOW_FIRST') {
+        // Unique destination count in window
+        const uniqueSet = new Set(windowCalls.map(c => c.destination));
+        firstCallsCount = uniqueSet.size;
+        firstAnsweredCount = windowCalls.filter(c => c.windowSequence === 1 && c.status === 'ANSWERED').length;
+        document.getElementById('kpiFirstCallsDesc').textContent = 'Сонгосон хугацаан дахь 1-р залгалт';
+      } else if (countMode === 'ABSOLUTE_FIRST') {
+        // Only destinations dialed for the very first time across all history
+        const absoluteFirsts = windowCalls.filter(c => c.globalSequence === 1);
+        firstCallsCount = absoluteFirsts.length;
+        firstAnsweredCount = absoluteFirsts.filter(c => c.status === 'ANSWERED').length;
+        document.getElementById('kpiFirstCallsDesc').textContent = 'Бүх түүхэнд цоо шинэ дугаарууд';
+      } else if (countMode === 'FIRST_ANSWERED') {
+        firstCallsCount = windowCalls.filter(c => c.isWindowFirstAnswered).length;
+        firstAnsweredCount = firstCallsCount;
+        document.getElementById('kpiFirstCallsDesc').textContent = 'Анх удаа холбогдсон дугаарууд';
+      }
+
+      document.getElementById('kpiFirstCalls').textContent = firstCallsCount.toLocaleString();
+
+      // 2. Total Calls & Repeats
+      document.getElementById('kpiTotalCalls').textContent = windowCalls.length.toLocaleString();
+      const repeatCalls = Math.max(0, windowCalls.length - firstCallsCount);
+      document.getElementById('kpiRepeatCount').textContent = repeatCalls.toLocaleString();
+
+      // 3. Answered Calls Rate
+      const totalAnswered = windowCalls.filter(c => c.status === 'ANSWERED').length;
+      const answerRate = windowCalls.length > 0 ? ((totalAnswered / windowCalls.length) * 100).toFixed(1) : '0';
+      document.getElementById('kpiAnswered').textContent = totalAnswered.toLocaleString();
+      document.getElementById('kpiAnswerRate').textContent = `${answerRate}%`;
+      document.getElementById('kpiFirstAnswered').textContent = firstAnsweredCount.toLocaleString();
+
+      // 4. Duration
+      const totalSec = windowCalls.reduce((sum, c) => sum + (c.duration || 0), 0);
+      const avgSec = totalAnswered > 0 ? Math.round(totalSec / totalAnswered) : 0;
+      document.getElementById('kpiTotalDuration').textContent = formatDuration(totalSec);
+      document.getElementById('kpiAvgDuration').textContent = `${avgSec} сек`;
+
+      // Render Charts, Agent Breakdown, and Table
+      renderCharts(windowCalls);
+      renderAgentTable(windowCalls);
+      renderTable();
+    }
+
+    function renderAgentTable(calls) {
+      const tbody = document.getElementById('agentTableBody');
+      const badge = document.getElementById('agentCountBadge');
+
+      if (!calls || calls.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Өгөгдөл байхгүй</td></tr>`;
+        badge.textContent = '0 ажилтан';
+        return;
+      }
+
+      const agentMap = new Map();
+
+      calls.forEach(call => {
+        const agent = call.source || 'Тодорхойгүй';
+        if (!agentMap.has(agent)) {
+          agentMap.set(agent, {
+            agent,
+            totalCalls: 0,
+            firstCalls: 0,
+            answeredCalls: 0,
+            totalDuration: 0
+          });
+        }
+        const stat = agentMap.get(agent);
+        stat.totalCalls++;
+        if (call.isCountedFirst) stat.firstCalls++;
+        if (call.status === 'ANSWERED') stat.answeredCalls++;
+        stat.totalDuration += (call.duration || 0);
+      });
+
+      const agentList = Array.from(agentMap.values()).sort((a, b) => b.firstCalls - a.firstCalls || b.totalCalls - a.totalCalls);
+      badge.textContent = `${agentList.length} ажилтан`;
+
+      let html = '';
+      agentList.forEach(stat => {
+        const rate = stat.totalCalls > 0 ? ((stat.answeredCalls / stat.totalCalls) * 100).toFixed(1) : 0;
+        html += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-3 font-semibold text-slate-800 font-mono flex items-center space-x-2">
+              <span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-600 font-bold">👤</span>
+              <span>${stat.agent}</span>
+            </td>
+            <td class="px-4 py-3 text-center font-bold text-blue-600">${stat.firstCalls.toLocaleString()}</td>
+            <td class="px-4 py-3 text-center text-slate-700">${stat.totalCalls.toLocaleString()}</td>
+            <td class="px-4 py-3 text-center font-semibold text-emerald-600">${stat.answeredCalls.toLocaleString()}</td>
+            <td class="px-4 py-3 text-center">
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${rate > 50 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">${rate}%</span>
+            </td>
+            <td class="px-4 py-3 text-right font-mono text-slate-700">${formatDuration(stat.totalDuration)}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function renderCharts(calls) {
+      if (!calls) return;
+
+      // 1. Group by Day for Timeline
+      const dayTotal = {};
+      const dayFirst = {};
+
+      calls.forEach(call => {
+        const dateKey = call.timestamp.toISOString().split('T')[0];
+        dayTotal[dateKey] = (dayTotal[dateKey] || 0) + 1;
+        if (call.isCountedFirst) {
+          dayFirst[dateKey] = (dayFirst[dateKey] || 0) + 1;
+        }
+      });
+
+      const sortedDates = Object.keys(dayTotal).sort();
+      const totals = sortedDates.map(d => dayTotal[d]);
+      const firsts = sortedDates.map(d => dayFirst[d] || 0);
+
+      const timelineCanvas = document.getElementById('timelineChart');
+      if (timelineCanvas) {
+        const timelineCtx = timelineCanvas.getContext('2d');
+        if (timelineChart) timelineChart.destroy();
+
+        timelineChart = new Chart(timelineCtx, {
+          type: 'line',
+          data: {
+            labels: sortedDates.length > 0 ? sortedDates : ['Огноо алга'],
+            datasets: [
+              {
+                label: 'Эхний залгалт (Шинэ дугаар)',
+                data: firsts.length > 0 ? firsts : [0],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.35,
+                pointRadius: sortedDates.length > 30 ? 0 : 3
+              },
+              {
+                label: 'Нийт дуудлага',
+                data: totals.length > 0 ? totals : [0],
+                borderColor: '#94a3b8',
+                backgroundColor: 'transparent',
+                borderWidth: 1.5,
+                borderDash: [4, 4],
+                tension: 0.35,
+                pointRadius: sortedDates.length > 30 ? 0 : 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxTicksLimit: 10, font: { size: 10 } }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: { precision: 0, font: { size: 10 } }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. First vs Repeat Doughnut Chart
+      let firstCount = 0;
+      let repeatCount = 0;
+      calls.forEach(c => {
+        if (c.isCountedFirst) firstCount++;
+        else repeatCount++;
+      });
+
+      const totalCallsCount = calls.length;
+      const firstPct = totalCallsCount > 0 ? ((firstCount / totalCallsCount) * 100).toFixed(1) : 0;
+      const repeatPct = totalCallsCount > 0 ? ((repeatCount / totalCallsCount) * 100).toFixed(1) : 0;
+
+      const firstRepeatCanvas = document.getElementById('firstRepeatChart');
+      if (firstRepeatCanvas) {
+        const firstRepeatCtx = firstRepeatCanvas.getContext('2d');
+        if (firstRepeatChart) firstRepeatChart.destroy();
+
+        firstRepeatChart = new Chart(firstRepeatCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Эхний залгалт', 'Давтан залгалт'],
+            datasets: [{
+              data: [firstCount, repeatCount],
+              backgroundColor: ['#2563eb', '#f59e0b'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+
+      const firstRepeatLegendEl = document.getElementById('firstRepeatLegend');
+      if (firstRepeatLegendEl) {
+        firstRepeatLegendEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1.5 text-slate-700">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span> Эхний залгалт:
+            </span>
+            <span class="font-bold text-slate-800 font-mono">${firstCount.toLocaleString()} <span class="text-[10px] font-normal text-slate-500">(${firstPct}%)</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1.5 text-slate-700">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Давтан залгалт:
+            </span>
+            <span class="font-bold text-slate-800 font-mono">${repeatCount.toLocaleString()} <span class="text-[10px] font-normal text-slate-500">(${repeatPct}%)</span></span>
+          </div>
+        `;
+      }
+
+      // 3. Disposition Doughnut Chart
+      let answeredCount = 0;
+      let noAnswerCount = 0;
+      let busyCount = 0;
+      let failedCount = 0;
+
+      calls.forEach(c => {
+        if (c.status === 'ANSWERED') answeredCount++;
+        else if (c.status === 'BUSY') busyCount++;
+        else if (c.status === 'FAILED') failedCount++;
+        else noAnswerCount++;
+      });
+
+      const statusCanvas = document.getElementById('statusChart');
+      if (statusCanvas) {
+        const statusCtx = statusCanvas.getContext('2d');
+        if (statusChart) statusChart.destroy();
+
+        statusChart = new Chart(statusCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Холбогдсон', 'Хариулаагүй', 'Завгүй', 'Алдаатай'],
+            datasets: [{
+              data: [answeredCount, noAnswerCount, busyCount, failedCount],
+              backgroundColor: ['#10b981', '#64748b', '#f59e0b', '#ef4444'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+
+      const chartLegendEl = document.getElementById('chartLegend');
+      if (chartLegendEl) {
+        chartLegendEl.innerHTML = `
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="text-slate-600">Холбогдсон: <b>${answeredCount.toLocaleString()}</b></span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+            <span class="text-slate-600">Хариулаагүй: <b>${noAnswerCount.toLocaleString()}</b></span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span class="text-slate-600">Завгүй: <b>${busyCount.toLocaleString()}</b></span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span class="text-slate-600">Алдаа: <b>${failedCount.toLocaleString()}</b></span>
+          </div>
+        `;
+      }
+
+      // 4. Top Repeated Target Numbers Bar Chart
+      const destStats = new Map();
+      calls.forEach(c => {
+        const dst = c.destination || 'Тодорхойгүй';
+        if (!destStats.has(dst)) {
+          destStats.set(dst, { total: 0, answered: 0 });
+        }
+        const s = destStats.get(dst);
+        s.total++;
+        if (c.status === 'ANSWERED') s.answered++;
+      });
+
+      // Filter and sort targets with highest call counts (Top 10)
+      const sortedDest = Array.from(destStats.entries())
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10);
+
+      const topLabels = sortedDest.map(item => item[0]);
+      const topTotals = sortedDest.map(item => item[1].total);
+      const topAnswered = sortedDest.map(item => item[1].answered);
+
+      // Max repeat count badge
+      const maxRepeats = sortedDest.length > 0 ? sortedDest[0][1].total : 0;
+      const badgeEl = document.getElementById('repeatSummaryBadge');
+      if (badgeEl) {
+        badgeEl.textContent = sortedDest.length > 0 
+          ? `Хамгийн олон залгагдсан: ${sortedDest[0][0]} (${maxRepeats} удаа)`
+          : 'Давхардсан залгалт байхгүй';
+      }
+
+      const topRepeatedCanvas = document.getElementById('topRepeatedChart');
+      if (topRepeatedCanvas) {
+        const topRepeatedCtx = topRepeatedCanvas.getContext('2d');
+        if (topRepeatedChart) topRepeatedChart.destroy();
+
+        topRepeatedChart = new Chart(topRepeatedCtx, {
+          type: 'bar',
+          data: {
+            labels: topLabels.length > 0 ? topLabels : ['Өгөгдөл алга'],
+            datasets: [
+              {
+                label: 'Нийт залгасан тоо',
+                data: topTotals.length > 0 ? topTotals : [0],
+                backgroundColor: '#3b82f6',
+                borderRadius: 6,
+                barPercentage: 0.65
+              },
+              {
+                label: 'Холбогдсон тоо',
+                data: topAnswered.length > 0 ? topAnswered : [0],
+                backgroundColor: '#10b981',
+                borderRadius: 6,
+                barPercentage: 0.65
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', // Horizontal bars for clean phone number legibility
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  boxWidth: 12,
+                  font: { size: 11 }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  afterLabel: function(ctx) {
+                    const idx = ctx.dataIndex;
+                    const item = sortedDest[idx];
+                    if (item) {
+                      const unans = item[1].total - item[1].answered;
+                      return `Хариулаагүй: ${unans} удаа`;
+                    }
+                    return '';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { precision: 0, font: { size: 10 } },
+                grid: { color: '#f1f5f9' }
+              },
+              y: {
+                ticks: { font: { family: 'monospace', size: 11, weight: '600' } },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('cdrTableBody');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+      const curPageSpan = document.getElementById('currentPageSpan');
+      const infoSpan = document.getElementById('paginationInfo');
+
+      if (!displayCalls || displayCalls.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="px-4 py-12 text-center text-slate-400">
+              Сонгосон хугацаа болон шүүлтүүрт тохирох дуудлага олдсонгүй.
+            </td>
+          </tr>
+        `;
+        infoSpan.textContent = '0 үр дүнгээс 0-0 харуулж байна';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        curPageSpan.textContent = '1';
+        return;
+      }
+
+      const totalItems = displayCalls.length;
+      const totalPages = Math.ceil(totalItems / pageSize);
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalItems);
+      const pageData = displayCalls.slice(startIndex, endIndex);
+
+      curPageSpan.textContent = `${currentPage} / ${totalPages}`;
+      infoSpan.textContent = `${totalItems.toLocaleString()} үр дүнгээс ${startIndex + 1}-${endIndex} харуулж байна`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+
+      let html = '';
+      pageData.forEach((call, idx) => {
+        const itemNumber = startIndex + idx + 1;
+        const timeFormatted = call.timestamp.toLocaleString('mn-MN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+
+        // Status badge
+        let statusBadge = '';
+        if (call.status === 'ANSWERED') {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">Холбогдсон</span>';
+        } else if (call.status === 'BUSY') {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">Завгүй</span>';
+        } else {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">Хариулаагүй</span>';
+        }
+
+        // Direction badge
+        let dirBadge = call.direction === 'OUTBOUND'
+          ? '<span class="text-blue-600 font-semibold flex items-center"><svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z"/></svg>Гадагшаа</span>'
+          : '<span class="text-emerald-600 font-semibold flex items-center"><svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110-18 9 9 0 010 18z"/></svg>Дотогшоо</span>';
+
+        // First Dial vs Repeat badge
+        let firstBadge = '';
+        if (call.isCountedFirst) {
+          firstBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">⭐ Анхны залгалт</span>';
+        } else {
+          firstBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">Давтан (${call.windowSequence || call.globalSequence}-р)</span>`;
+        }
+
+        html += `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="px-4 py-3 font-medium text-slate-400">${itemNumber}</td>
+            <td class="px-4 py-3 font-mono text-slate-700 whitespace-nowrap">${timeFormatted}</td>
+            <td class="px-4 py-3 font-semibold text-slate-900 font-mono tracking-tight">${call.destination}</td>
+            <td class="px-4 py-3">${dirBadge}</td>
+            <td class="px-4 py-3 text-slate-700 font-mono">${call.source}</td>
+            <td class="px-4 py-3">${statusBadge}</td>
+            <td class="px-4 py-3 font-mono text-slate-700">${formatDuration(call.duration)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${firstBadge}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function loadSampleData() {
+      const sampleRows = [];
+      const prefixes = ['99', '88', '91', '80', '95', '85', '77', '70'];
+      const agents = ['101', '102', '103', '104', '105', '108'];
+
+      // Realistic date bounds matching user's two file ranges: 2026-04-16 to 2026-09-30
+      const startDate = new Date('2026-04-16T09:00:00');
+      const endDate = new Date('2026-09-30T18:00:00');
+      const timeDiff = endDate.getTime() - startDate.getTime();
+
+      // Pool of 150 unique target phone numbers
+      const phonePool = [];
+      for (let i = 0; i < 150; i++) {
+        const pref = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const rest = String(Math.floor(100000 + Math.random() * 900000));
+        phonePool.push(`${pref}${rest}`);
+      }
+
+      // Generate 550 realistic CDR records
+      for (let i = 0; i < 550; i++) {
+        const callTime = new Date(startDate.getTime() + Math.random() * timeDiff);
+        callTime.setHours(9 + Math.floor(Math.random() * 9));
+        callTime.setMinutes(Math.floor(Math.random() * 60));
+
+        const targetPhone = phonePool[Math.floor(Math.random() * phonePool.length)];
+        const agent = agents[Math.floor(Math.random() * agents.length)];
+        const isAnswered = Math.random() > 0.42;
+        const status = isAnswered ? 'ANSWERED' : (Math.random() > 0.6 ? 'BUSY' : 'NO ANSWER');
+        const duration = isAnswered ? Math.floor(12 + Math.random() * 280) : 0;
+
+        sampleRows.push({
+          'calldate': callTime.toISOString().replace('T', ' ').substring(0, 19),
+          'src': agent,
+          'dst': targetPhone,
+          'disposition': status,
+          'billsec': duration,
+          'direction': 'outbound'
+        });
+      }
+
+      rawCalls = sampleRows;
+      processedCalls = normalizeCdrRows(rawCalls);
+
+      if (processedCalls.length > 0) {
+        document.getElementById('filterDateFrom').value = formatDateForInput(processedCalls[0].timestamp);
+        document.getElementById('filterDateTo').value = formatDateForInput(processedCalls[processedCalls.length - 1].timestamp);
+      }
+
+      document.getElementById('fileBadge').textContent = '2026 Жишээ өгөгдөл (550 дуудлага)';
+      document.getElementById('fileBadge').classList.remove('hidden');
+      document.getElementById('uploadFeedback').textContent = '2026-04-16-аас 2026-09-30 хүртэлх жишээ CDR амжилттай тоологдлоо!';
+
+      applyFilters();
+      showToast('2026 оны дуудлагын жишээ өгөгдөл амжилттай ачаалж, нарийн тооцоолов!', 'success');
+    }
+
+    // Handles multiple uploaded files reliably
+    function handleFiles(files) {
+      if (!files || files.length === 0) return;
+
+      const fileList = Array.from(files);
+      let filesProcessed = 0;
+      let combinedRows = [];
+
+      showToast(`${fileList.length} файл уншиж байна...`, 'info');
+
+      fileList.forEach(file => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: 'greedy',
+          delimiter: '', // auto-detect delimiter: comma, semicolon, tab
+          dynamicTyping: false,
+          complete: function(results) {
+            if (results.data && results.data.length > 0) {
+              combinedRows = combinedRows.concat(results.data);
+            }
+            filesProcessed++;
+
+            if (filesProcessed === fileList.length) {
+              if (combinedRows.length === 0) {
+                showToast('Файлаас унших боломжтой дуудлагын мөр олдсонгүй.', 'error');
+                return;
+              }
+
+              rawCalls = combinedRows;
+              processedCalls = normalizeCdrRows(rawCalls);
+
+              if (processedCalls.length > 0) {
+                document.getElementById('filterDateFrom').value = formatDateForInput(processedCalls[0].timestamp);
+                document.getElementById('filterDateTo').value = formatDateForInput(processedCalls[processedCalls.length - 1].timestamp);
+              }
+
+              document.getElementById('fileBadge').textContent = `${fileList.length} файл (${processedCalls.length.toLocaleString()} мөр)`;
+              document.getElementById('fileBadge').classList.remove('hidden');
+              document.getElementById('uploadFeedback').textContent = `${fileList.map(f => f.name).join(', ')} амжилттай нэгтгэгдэн цэгцлэгдлээ.`;
+
+              applyFilters();
+              showToast(`${processedCalls.length.toLocaleString()} дуудлагын өгөгдөл алдаагүй тоологдож бэлэн боллоо!`, 'success');
+            }
+          },
+          error: function(err) {
+            showToast(`Файл уншихад алдаа гарлаа: ${err.message}`, 'error');
+          }
+        });
+      });
+    }
+
+    // Export function
+    function exportFilteredCsv() {
+      if (!displayCalls || displayCalls.length === 0) {
+        showToast('Экспортлох өгөгдөл байхгүй байна.', 'error');
+        return;
+      }
+
+      const headers = ['Огноо_Цаг', 'Хүлээн_Авагч_Утас', 'Чиглэл', 'Залгасан_Ажилтан', 'Төлөв', 'Хугацаа_Сек', 'Ангилал'];
+      const rows = displayCalls.map(c => [
+        `"${c.timestamp.toISOString().replace('T', ' ').substring(0, 19)}"`,
+        `"${c.destination}"`,
+        `"${c.direction}"`,
+        `"${c.source}"`,
+        `"${c.status}"`,
+        c.duration,
+        c.isCountedFirst ? '"Анхны залгалт (1st)"' : `'"Давтан (${c.windowSequence || c.globalSequence})"'`
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Filtered_Calls_Report_${new Date().toISOString().substring(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('Шүүгдсэн дата амжилттай татагдлаа!', 'success');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('csvFileInput');
+      const dropArea = document.getElementById('dropArea');
+      const loadSampleBtn = document.getElementById('loadSampleBtn');
+      const exportCsvBtn = document.getElementById('exportCsvBtn');
+      const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+      const applyFilterManualBtn = document.getElementById('applyFilterManualBtn');
+      const quickTodayBtn = document.getElementById('quickTodayBtn');
+      const pageSizeSelect = document.getElementById('pageSizeSelect');
+
+      // User modified a filter parameter -> mark as DIRTY, require button press
+      function markFilterDirty() {
+        const dirtyBadge = document.getElementById('filterDirtyBadge');
+        const applyBtn = document.getElementById('applyFilterManualBtn');
+        if (dirtyBadge) dirtyBadge.classList.remove('hidden');
+        if (applyBtn) {
+          applyBtn.classList.add('ring-4', 'ring-amber-400', 'bg-amber-600', 'hover:bg-amber-700');
+          applyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        }
+      }
+
+      // Listen for filter input changes - DO NOT run auto-apply, only mark as dirty
+      const filterInputs = [
+        'filterDateFrom',
+        'filterDateTo',
+        'filterDirection',
+        'filterStatus',
+        'filterViewScope',
+        'filterMinSec'
+      ];
+
+      filterInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', markFilterDirty);
+          if (id === 'filterMinSec') {
+            el.addEventListener('input', markFilterDirty);
+          }
+        }
+      });
+
+      // Search input: mark dirty on input, trigger apply on Enter key
+      const filterSearchInput = document.getElementById('filterSearch');
+      if (filterSearchInput) {
+        filterSearchInput.addEventListener('input', markFilterDirty);
+        filterSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            applyFilters();
+            showToast('Хайлтаар шүүлтүүр амжилттай хийгдлээ.', 'success');
+          }
+        });
+      }
+
+      // ONLY calculate when "Шүүж тооцоолох" button is clicked
+      applyFilterManualBtn.addEventListener('click', () => {
+        applyFilters();
+        showToast('Шүүлтүүр амжилттай тооцоологдож, шинэчлэгдлээ!', 'success');
+      });
+
+      quickTodayBtn.addEventListener('click', () => {
+        if (processedCalls.length > 0) {
+          document.getElementById('filterDateFrom').value = formatDateForInput(processedCalls[0].timestamp);
+          document.getElementById('filterDateTo').value = formatDateForInput(processedCalls[processedCalls.length - 1].timestamp);
+          applyFilters();
+          showToast('Бүх хугацааны өгөгдлийг тооцоолов.', 'info');
+        }
+      });
+
+      pageSizeSelect.addEventListener('change', (e) => {
+        pageSize = parseInt(e.target.value, 10);
+        currentPage = 1;
+        renderTable();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+      });
+
+      // Drag and drop handlers
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropArea.classList.add('border-blue-500', 'bg-blue-50/40');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropArea.classList.remove('border-blue-500', 'bg-blue-50/40');
+        }, false);
+      });
+
+      dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const dt = e.dataTransfer;
+        handleFiles(dt.files);
+      });
+
+      loadSampleBtn.addEventListener('click', loadSampleData);
+      exportCsvBtn.addEventListener('click', exportFilteredCsv);
+
+      resetFiltersBtn.addEventListener('click', () => {
+        if (processedCalls.length > 0) {
+          document.getElementById('filterDateFrom').value = formatDateForInput(processedCalls[0].timestamp);
+          document.getElementById('filterDateTo').value = formatDateForInput(processedCalls[processedCalls.length - 1].timestamp);
+        } else {
+          document.getElementById('filterDateFrom').value = '';
+          document.getElementById('filterDateTo').value = '';
+        }
+        document.getElementById('filterDirection').value = 'OUTBOUND';
+        document.getElementById('filterStatus').value = 'ALL';
+        document.getElementById('filterViewScope').value = 'FIRST_ONLY';
+        document.getElementById('filterSearch').value = '';
+        document.getElementById('filterMinSec').value = '0';
+        applyFilters();
+        showToast('Шүүлтүүр анхны төлөвт шилжлээ.', 'info');
+      });
+
+      // Pagination
+      document.getElementById('prevPageBtn').addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+        }
+      });
+
+      document.getElementById('nextPageBtn').addEventListener('click', () => {
+        const totalPages = Math.ceil(displayCalls.length / pageSize);
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+        }
+      });
+
+      // Auto-load sample so the dashboard is immediately interactive
+      loadSampleData();
+    });
+  </script>
+</body>
+</html>
